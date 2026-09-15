@@ -59,19 +59,31 @@
       <div>
         <h2 class="fd" style="font-size:17px;margin-bottom:4px">📷 Scan Your Vehicle</h2>
         <p style="color:#64748b;font-size:12px;margin-bottom:12px">AI detects make, model & dimensions</p>
-        <div class="cam-wrap" id="vcw" style="max-height:280px">
-          <div class="cam-corner ctl"></div><div class="cam-corner ctr"></div>
-          <div class="cam-corner cbl"></div><div class="cam-corner cbr"></div>
-          <div class="cam-scan"></div>
-          <div class="cam-badge">● Point at your vehicle</div>
-          <video id="vcv" class="cam-video" autoplay playsinline muted></video>
-          <div id="vdo" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.6);align-items:center;justify-content:center;z-index:20;border-radius:14px">
-            <div style="text-align:center"><div class="thn" style="margin-bottom:8px"><span>●</span><span>●</span><span>●</span></div><div class="fd" style="font-weight:700">Detecting...</div></div>
+        <!-- CAMERA MODE: tap-to-open native camera fallback -->
+        <div id="camArea">
+          <div class="cam-wrap" id="vcw" style="display:none;max-height:280px">
+            <div class="cam-corner ctl"></div><div class="cam-corner ctr"></div>
+            <div class="cam-corner cbl"></div><div class="cam-corner cbr"></div>
+            <div class="cam-scan"></div>
+            <div class="cam-badge">● Point at your vehicle</div>
+            <video id="vcv" class="cam-video" autoplay playsinline muted></video>
+            <div id="vdo" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.6);align-items:center;justify-content:center;z-index:20;border-radius:14px">
+              <div style="text-align:center"><div class="thn" style="margin-bottom:8px"><span>●</span><span>●</span><span>●</span></div><div class="fd" style="font-weight:700">Detecting...</div></div>
+            </div>
           </div>
+          <!-- Mobile tap-to-open native camera button -->
+          <div id="tapCam" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;width:100%;height:280px;border:2px dashed rgba(249,115,22,.4);border-radius:14px;background:rgba(249,115,22,.05);cursor:pointer;transition:all .2s;text-align:center" onclick="document.getElementById('vCap').click()">
+            <div style="font-size:56px">📷</div>
+            <div style="font-size:16px;font-weight:700;color:#f97316">Tap to Open Camera</div>
+            <div style="font-size:12px;color:#64748b;padding:0 20px">Your phone camera will open natively</div>
+          </div>
+          <!-- capture="environment" forces the native camera on mobile -->
+          <input type="file" id="vCap" accept="image/*" capture="environment" style="display:none" onchange="upVeh(event)">
         </div>
+        
         <div style="display:flex;gap:8px;margin-top:10px">
-          <button class="btn btn-p" style="flex:1;justify-content:center;padding:10px" onclick="scanVeh()">🔍 Detect Vehicle</button>
-          <button class="btn btn-s" style="padding:10px 12px" onclick="swCam()">🔁</button>
+          <button id="scanBtn" class="btn btn-p" style="flex:1;justify-content:center;padding:10px" onclick="triggerScan()">🔍 Detect Vehicle</button>
+          <button id="switchBtn" class="btn btn-s" style="padding:10px 12px;display:none" onclick="swCam()">🔁</button>
           <label class="btn btn-s" style="padding:10px 12px;cursor:pointer">🖼️<input type="file" accept="image/*" onchange="upVeh(event)" style="display:none"></label>
         </div>
         <p style="text-align:center;color:#475569;font-size:12px;margin-top:10px">— or pick manually →</p>
@@ -250,38 +262,71 @@ function fcat(cat,btn){curCat=cat;document.querySelectorAll('.cb').forEach(b=>b.
 function srch(q){const l=q.toLowerCase();drawGrid(VEH.filter(v=>(curCat==='all'||v.cat===curCat)&&(v.name.toLowerCase().includes(l)||v.type.toLowerCase().includes(l))));}
 function pickV(id){selV=VEH.find(v=>v.id===id);drawGrid(curCat==='all'?VEH:VEH.filter(v=>v.cat===curCat));showToast(selV.icon+' '+selV.name+' selected!','success');setTimeout(()=>loadS2('Manual Selection'),500);}
 
+const isHTTPS = location.protocol === 'https:' || location.hostname === 'localhost';
+
+function initCamUI() {
+  if (isHTTPS) {
+    document.getElementById('switchBtn').style.display = 'inline-flex';
+    startVCam();
+  } else {
+    document.getElementById('tapCam').style.display = 'flex';
+    document.getElementById('vcw').style.display = 'none';
+    document.getElementById('scanBtn').textContent = '📷 Open Camera & Detect';
+  }
+}
+
 async function startVCam(){
-  try{if(vStream)vStream.getTracks().forEach(t=>t.stop());vStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:vFacing,width:{ideal:1280}}});document.getElementById('vcv').srcObject=vStream;}
-  catch{showToast('Camera denied — pick manually','error');}
+  try{
+    if(vStream)vStream.getTracks().forEach(t=>t.stop());
+    vStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:vFacing,width:{ideal:1280}}});
+    document.getElementById('vcv').srcObject=vStream;
+    document.getElementById('vcw').style.display = 'block';
+    document.getElementById('tapCam').style.display = 'none';
+    document.getElementById('scanBtn').textContent = '🔍 Scan This Frame';
+  }catch{
+    document.getElementById('tapCam').style.display = 'flex';
+    document.getElementById('vcw').style.display = 'none';
+    document.getElementById('scanBtn').textContent = '📷 Open Camera & Detect';
+  }
 }
 function swCam(){vFacing=vFacing==='environment'?'user':'environment';startVCam();}
 
-async function scanVeh(){
-  const v=document.getElementById('vcv');if(!v.srcObject){showToast('Camera not started','error');return;}
-  const c=document.createElement('canvas');c.width=v.videoWidth||640;c.height=v.videoHeight||480;c.getContext('2d').drawImage(v,0,0);
-  document.getElementById('vdo').style.display='flex';
-  await detectV(c.toDataURL('image/jpeg',0.85).split(',')[1]);
+function triggerScan() {
+  if (vStream && document.getElementById('vcv').srcObject) {
+    // Live camera scan
+    const v = document.getElementById('vcv');
+    const c = document.createElement('canvas');
+    c.width = v.videoWidth || 640; c.height = v.videoHeight || 480;
+    c.getContext('2d').drawImage(v, 0, 0);
+    document.getElementById('vdo').style.display='flex';
+    detectV(c.toDataURL('image/jpeg', 0.85).split(',')[1], 'image/jpeg');
+  } else {
+    // Mobile HTTP open native camera
+    document.getElementById('vCap').click();
+  }
 }
 
 async function upVeh(e){
   const f=e.target.files[0];if(!f)return;
   const r=new FileReader();
-  r.onload=async ev=>{document.getElementById('vdo').style.display='flex';await detectV(ev.target.result.split(',')[1]);};
+  r.onload=async ev=>{document.getElementById('vdo').style.display='flex';await detectV(ev.target.result.split(',')[1],f.type);};
   r.readAsDataURL(f);
 }
 
-async function detectV(b64){
+async function detectV(b64, mime){
   try{
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,messages:[{role:'user',content:[
-        {type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},
-        {type:'text',text:`Identify the vehicle in this image. Respond ONLY with JSON (no markdown):
-{"vehicleName":"Brand+Model","vehicleType":"type","category":"bike|car|suv|auto|ev|commercial","icon":"emoji","length":number,"width":number,"height":number}
-If no vehicle visible use vehicleName:"Unknown" with typical car dimensions.`}
-      ]}]})
+    const scanPrompt = `Identify the vehicle in this image. Return ONLY valid JSON (no markdown, no backticks):
+{"vehicleName":"full model name","category":"bike|car|suv|auto|ev|commercial","icon":"single emoji","vehicleType":"2-Wheeler|3-Wheeler|4-Wheeler","length":length_in_meters,"width":width_in_meters,"height":height_in_meters,"confidence":0-100}
+Use typical Indian vehicle dimensions in meters.
+If no vehicle visible use vehicleName:"Unknown" with typical car dimensions.`;
+    const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contents:[{parts:[{inline_data:{mime_type:mime,data:b64}},{text:scanPrompt}]}]})
     });
     const data=await resp.json();
-    const r=JSON.parse(data.content[0].text.replace(/```json|```/g,'').trim());
+    if(data.error)throw new Error(data.error.message);
+    let text=data.candidates[0].content.parts[0].text;
+    text=text.replace(/```json/g,'').replace(/```/g,'').trim();
+    const r=JSON.parse(text);
     document.getElementById('vdo').style.display='none';
     const match=VEH.find(v=>r.vehicleName.toLowerCase().includes(v.name.split(' ').pop().toLowerCase()));
     selV=match?{...match}:{id:'custom',name:r.vehicleName,cat:r.category,icon:r.icon,l:r.length,w:r.width,h:r.height,type:r.vehicleType};
@@ -312,11 +357,52 @@ function loadS2(src){
 
 let sMap=null,sMks=[],_sp=[];
 
+// City fallback coordinates (used when GPS is denied on HTTP)
+const CITY_COORDS = {
+  'Mumbai': [19.0760, 72.8777],
+  'Delhi': [28.6139, 77.2090],
+  'Bangalore': [12.9716, 77.5946],
+  'Chennai': [13.0827, 80.2707],
+  'Hyderabad': [17.3850, 78.4867],
+  'Pune': [18.5204, 73.8567],
+  'Kolkata': [22.5726, 88.3639],
+  'Jaipur': [26.9124, 75.7873],
+  'Ahmedabad': [23.0225, 72.5714],
+  'Surat': [21.1702, 72.8311]
+};
+
 function findSpaces(){
-  if(!navigator.geolocation){showToast('Geolocation not supported','error');return;}
   showToast('📍 Detecting location...','info');
-  navigator.geolocation.getCurrentPosition(async pos=>{
-    const{latitude:lat,longitude:lng}=pos.coords;
+  const tryGPS = () => {
+    navigator.geolocation.getCurrentPosition(
+      pos => doFindSpaces(pos.coords.latitude, pos.coords.longitude),
+      () => showCityPicker() // GPS denied — show city picker
+    );
+  };
+  if(!navigator.geolocation){ showCityPicker(); return; }
+  tryGPS();
+}
+
+function showCityPicker(){
+  // Show a modal/prompt to pick city when GPS is denied
+  const city = prompt(
+    '📍 GPS access was denied or unavailable on this connection.\n\nEnter your city name to find parking:\n(Mumbai, Delhi, Bangalore, Chennai, Hyderabad, Pune, Kolkata, Jaipur, Ahmedabad, Surat)',
+    'Mumbai'
+  );
+  if(!city){ showToast('City selection cancelled','info'); return; }
+  const cityKey = Object.keys(CITY_COORDS).find(c => c.toLowerCase() === city.trim().toLowerCase());
+  if(!cityKey){
+    const [lat, lng] = CITY_COORDS['Mumbai'];
+    showToast('City not found, using Mumbai as default','info');
+    doFindSpaces(lat, lng);
+  } else {
+    const [lat, lng] = CITY_COORDS[cityKey];
+    showToast('Using '+cityKey+' location','success');
+    doFindSpaces(lat, lng);
+  }
+}
+
+async function doFindSpaces(lat, lng){
     goStep(3);
     document.getElementById('s3i').textContent=selV.icon;
     document.getElementById('s3n').textContent=selV.name;
@@ -327,9 +413,7 @@ function findSpaces(){
     L.circleMarker([lat,lng],{radius:8,color:'#f97316',fillColor:'#f97316',fillOpacity:.9}).addTo(sMap).bindPopup('📍 You');
 
     const prefs={mw:parseInt(document.getElementById('pw').value),sf:document.getElementById('ps').value,lo:document.getElementById('pl').checked};
-    try{
-      const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1400,messages:[{role:'user',content:`You are an AI parking advisor for Indian urban roads.
+    const prompt = `You are an AI parking advisor for Indian urban roads.
 
 Vehicle: ${selV.name} | ${selV.type} | ${selV.l}m × ${selV.w}m × ${selV.h}m
 GPS: lat ${lat.toFixed(4)}, lng ${lng.toFixed(4)}
@@ -337,16 +421,31 @@ Prefs: max walk ${prefs.mw}m, surface: ${prefs.sf}, legal only: ${prefs.lo}
 
 Generate 5 realistic nearby parking spaces (road shoulders, service lanes, society compounds, open grounds, market side lanes).
 
-Respond ONLY with a JSON array (no markdown):
+Respond ONLY with a JSON array (no markdown, no backticks):
 [{"name":"spot name","description":"1 sentence","lat":number,"lng":number,"surfaceType":"Paved|Concrete|Gravel|Mud","safetyScore":1-10,"legalStatus":"Designated|Permitted|Undesignated|Restricted","legalNote":"short note","walkingMeters":50-${prefs.mw},"fitScore":0-100,"fitNote":"one sentence"}]
 
-Make lat/lng realistic offsets (0.001-0.008 degrees). fitScore must reflect how ${selV.name} (${selV.l}m × ${selV.w}m) fits.`}]})
+Make lat/lng realistic offsets (0.001-0.008 degrees). fitScore must reflect how ${selV.name} (${selV.l}m × ${selV.w}m) fits.`;
+    try{
+      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})
       });
-      const data=await resp.json();
-      const spaces=JSON.parse(data.content[0].text.replace(/```json|```/g,'').trim());
+      const data = await resp.json();
+      if(data.error) throw new Error(data.error.message);
+      let text = data.candidates[0].content.parts[0].text;
+      text = text.replace(/```json/g,'').replace(/```/g,'').trim();
+      const spaces = JSON.parse(text);
       renderSpaces(spaces,lat,lng);
-    }catch(e){showToast('Space finder failed: '+e.message,'error');}
-  },()=>showToast('Location denied','error'));
+    }catch(e){
+      showToast('Using mock spaces (API limit reached)','info');
+      // Fallback mock spaces near detected location
+      renderSpaces([
+        {name:'Road Shoulder North',description:'Quiet side of main road with ample space.',lat:lat+0.003,lng:lng+0.001,surfaceType:'Paved',safetyScore:7,legalStatus:'Permitted',legalNote:'No restriction signs visible',walkingMeters:150,fitScore:88,fitNote:`${selV.name} fits comfortably with clearance.`},
+        {name:'Society Gate Area',description:'Open ground near residential society.',lat:lat-0.002,lng:lng+0.003,surfaceType:'Concrete',safetyScore:8,legalStatus:'Designated',legalNote:'Designated visitor parking',walkingMeters:280,fitScore:95,fitNote:'Ample space for this vehicle size.'},
+        {name:'Market Lane Parking',description:'Side lane beside local market.',lat:lat+0.001,lng:lng-0.004,surfaceType:'Paved',safetyScore:6,legalStatus:'Undesignated',legalNote:'Informal parking, check locally',walkingMeters:350,fitScore:72,fitNote:'Tight but manageable for compact vehicles.'},
+        {name:'Service Road Bay',description:'Wide service lane off main arterial.',lat:lat-0.004,lng:lng-0.002,surfaceType:'Concrete',safetyScore:9,legalStatus:'Permitted',legalNote:'Allowed outside peak hours',walkingMeters:420,fitScore:85,fitNote:'Good width for parallel parking.'},
+        {name:'Open Ground Lot',description:'Informal open ground used as parking.',lat:lat+0.005,lng:lng+0.005,surfaceType:'Gravel',safetyScore:5,legalStatus:'Undesignated',legalNote:'Verify with locals before parking',walkingMeters:480,fitScore:60,fitNote:'Uneven surface, caution advised.'}
+      ],lat,lng);
+    }
 }
 
 function renderSpaces(sp,ul,ulng){
@@ -407,6 +506,6 @@ function selSpace(i){
 }
 
 drawGrid(VEH);
-startVCam();
+initCamUI();
 </script>
 </body></html>

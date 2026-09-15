@@ -45,19 +45,40 @@
 if(!requireAuth()){}
 renderNavbar('dashboard');
 const user=getUser();
-document.getElementById('gr').textContent=(user?.name||'User')+' 👋';
+const hr = new Date().getHours();
+const greeting = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
+document.getElementById('gr').textContent=(user?.name.split(' ')[0]||'User')+' 👋';
+document.querySelector('p[style="color:#64748b;font-size:13px;margin-bottom:4px"]').textContent = greeting + ',';
+
+function animateValue(obj, start, end, duration) {
+  let startTimestamp = null;
+  const step = (timestamp) => {
+    if (!startTimestamp) startTimestamp = timestamp;
+    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+    const val = Math.floor(progress * (end - start) + start);
+    obj.innerHTML = obj.dataset.fmt === 'inr' ? fmtINR(val) : val;
+    if (progress < 1) {
+      window.requestAnimationFrame(step);
+    }
+  };
+  window.requestAnimationFrame(step);
+}
+
 async function load(){
   try{
-    const[br,pr]=await Promise.all([Bookings.getMy(),Parking.getAll()]);
-    const bks=br.bookings;
-    document.getElementById('s1').textContent=bks.length;
-    document.getElementById('s2').textContent=bks.filter(b=>b.status==='active').length;
-    document.getElementById('s3').textContent=bks.filter(b=>b.status==='cancelled').length;
-    document.getElementById('s4').textContent=fmtINR(bks.filter(b=>b.status==='active').reduce((s,b)=>s+b.total_amount,0));
+    const bks = Bookings.getMy();
+    const lots = Parking.getAll();
+    
+    const s1 = document.getElementById('s1'); s1.dataset.fmt = 'num'; animateValue(s1, 0, bks.length, 1000);
+    const s2 = document.getElementById('s2'); s2.dataset.fmt = 'num'; animateValue(s2, 0, bks.filter(b=>b.status==='active').length, 1000);
+    const s3 = document.getElementById('s3'); s3.dataset.fmt = 'num'; animateValue(s3, 0, bks.filter(b=>b.status==='cancelled').length, 1000);
+    const totalSpent = bks.filter(b=>b.status==='active').reduce((s,b)=>s+b.totalAmount,0);
+    const s4 = document.getElementById('s4'); s4.dataset.fmt = 'inr'; animateValue(s4, 0, totalSpent, 1000);
+    
     const rb=document.getElementById('rb');
     if(!bks.length){rb.innerHTML='<div class="card" style="padding:28px;text-align:center;color:#64748b"><div style="font-size:30px;margin-bottom:8px">📭</div><p>No bookings yet</p><a href="/pages/map.html" style="color:#f97316;font-size:13px;display:block;margin-top:8px">Book now →</a></div>';}
-    else rb.innerHTML=bks.slice(0,5).map(b=>`<div class="bi"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-weight:600;font-size:14px">${b.lot_name}</div><div style="color:#64748b;font-size:12px;margin-top:2px">${b.location} · Slot ${b.slot_number}</div><div style="color:#475569;font-size:11px;margin-top:3px">${fmtIST(b.booked_at)}</div></div><div style="text-align:right"><span class="badge ${b.status==='active'?'bg':'br'}">${b.status}</span><div style="color:#f97316;font-weight:700;font-size:14px;margin-top:5px">${fmtINR(b.total_amount)}</div></div></div></div>`).join('');
-    document.getElementById('lp').innerHTML=pr.lots.map(l=>`<a class="li" href="/pages/lot.html?id=${l.id}"><div><div style="font-weight:600;font-size:14px">${l.name}</div><div style="color:#64748b;font-size:12px;margin-top:2px">${l.vehicle_type} · ${fmtINR(l.price_per_hour)}/hr</div></div><span class="badge ${availBadge(l.availableSlots,l.total_slots)}">${l.availableSlots}/${l.total_slots}</span></a>`).join('');
+    else rb.innerHTML=bks.slice(0,5).map(b=>`<div class="bi"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-weight:600;font-size:14px">${b.lotName}</div><div style="color:#64748b;font-size:12px;margin-top:2px">${b.location} · Slot ${b.slotNumber}</div><div style="color:#475569;font-size:11px;margin-top:3px">${fmtIST(b.bookedAt)}</div></div><div style="text-align:right"><span class="badge ${b.status==='active'?'bg':'br'}">${b.status}</span><div style="color:#f97316;font-weight:700;font-size:14px;margin-top:5px">${fmtINR(b.totalAmount)}</div></div></div></div>`).join('');
+    document.getElementById('lp').innerHTML=lots.map(l=>`<a class="li" href="/pages/lot.html?id=${l.id}"><div><div style="font-weight:600;font-size:14px">${l.name}</div><div style="color:#64748b;font-size:12px;margin-top:2px">${l.type} · ${fmtINR(l.pricePerHour)}/hr</div></div><span class="badge ${availBadge(l.total-l.booked,l.total)}">${l.total-l.booked}/${l.total}</span></a>`).join('');
   }catch(e){showToast('Load failed: '+e.message,'error');}
 }
 load();

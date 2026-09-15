@@ -87,8 +87,7 @@ function initDb() {
 
         name TEXT NOT NULL,
 
-        email TEXT NOT NULL
-        UNIQUE COLLATE NOCASE,
+        email TEXT NOT NULL UNIQUE COLLATE NOCASE,
 
         password TEXT NOT NULL,
 

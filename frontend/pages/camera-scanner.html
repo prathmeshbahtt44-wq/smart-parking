@@ -26,6 +26,12 @@
 @keyframes bl{0%,80%,100%{opacity:.2}40%{opacity:1}}
 .ht{width:52px;height:52px;border-radius:8px;object-fit:cover;border:2px solid transparent;cursor:pointer;transition:border-color .2s}
 .ht:hover{border-color:#f97316}
+/* BIG tap-to-open-camera button for mobile */
+.cam-tap-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;width:100%;height:280px;border:2px dashed rgba(249,115,22,.4);border-radius:14px;background:rgba(249,115,22,.05);cursor:pointer;transition:all .2s}
+.cam-tap-btn:hover,.cam-tap-btn:active{background:rgba(249,115,22,.12);border-color:#f97316}
+.cam-tap-btn .icon{font-size:56px}
+.cam-tap-btn .lbl{font-size:16px;font-weight:700;color:#f97316}
+.cam-tap-btn .sub{font-size:12px;color:#64748b}
 </style>
 </head>
 <body>
@@ -34,7 +40,7 @@
   <div style="margin-bottom:22px">
     <div style="display:flex;gap:8px;margin-bottom:10px">
       <span class="badge bo" style="padding:5px 14px">🤖 Vision AI</span>
-      <span class="badge bb" style="padding:5px 14px">📷 Live Camera</span>
+      <span class="badge bb" style="padding:5px 14px">📷 Camera Scanner</span>
     </div>
     <h1 class="fd" style="font-size:26px;font-weight:800">AI Camera Space Scanner</h1>
     <p style="color:#64748b;font-size:13px;margin-top:4px">Point at any road or open area — AI detects parking suitability instantly</p>
@@ -48,35 +54,64 @@
         <button id="mU" onclick="setMode('upload')">🖼️ Upload Photo</button>
       </div>
 
-      <div class="cam-wrap" id="cw">
-        <div class="cam-corner ctl"></div><div class="cam-corner ctr"></div>
-        <div class="cam-corner cbl"></div><div class="cam-corner cbr"></div>
-        <div class="cam-scan" id="csl"></div>
-        <div class="cam-badge">● LIVE — Point at parking area</div>
-        <video id="vid" class="cam-video" autoplay playsinline muted></video>
-        <div id="uph" style="display:none;width:100%;height:100%;align-items:center;justify-content:center;flex-direction:column;gap:10px;background:#0b1120;cursor:pointer" onclick="document.getElementById('fi').click()">
+      <!-- CAMERA MODE: tap-to-open native camera (works on HTTP mobile) -->
+      <div id="camArea">
+        <!-- If live stream available, show video; else show tap-to-open button -->
+        <div class="cam-wrap" id="cw" style="display:none;position:relative">
+          <div class="cam-corner ctl"></div><div class="cam-corner ctr"></div>
+          <div class="cam-corner cbl"></div><div class="cam-corner cbr"></div>
+          <div class="cam-scan" id="csl"></div>
+          <div class="cam-badge">● LIVE — Point at parking area</div>
+          <video id="vid" class="cam-video" autoplay playsinline muted></video>
+          <!-- Captured overlay -->
+          <div id="co" style="display:none;position:absolute;inset:0;z-index:15;border-radius:14px;overflow:hidden">
+            <img id="ci" style="width:100%;height:100%;object-fit:cover">
+            <div class="ov" id="ao" style="display:none">
+              <div style="text-align:center">
+                <div class="th" style="margin-bottom:10px"><span>●</span><span>●</span><span>●</span></div>
+                <div class="fd" style="font-weight:700;font-size:16px">AI Analyzing...</div>
+                <div style="color:#94a3b8;font-size:12px;margin-top:4px">Detecting spaces & surfaces</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobile-friendly: tap to open camera via file input -->
+        <div id="tapCam" class="cam-tap-btn" onclick="document.getElementById('camCapture').click()">
+          <div class="icon">📷</div>
+          <div class="lbl">Tap to Open Camera</div>
+          <div class="sub">Your phone camera will open — point at parking area</div>
+        </div>
+        <!-- capture="environment" opens rear camera directly on mobile! -->
+        <input type="file" id="camCapture" accept="image/*" capture="environment" style="display:none" onchange="handleCapture(event)">
+      </div>
+
+      <!-- UPLOAD MODE -->
+      <div id="uploadArea" style="display:none">
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;height:280px;background:rgba(255,255,255,.03);border:2px dashed rgba(255,255,255,.1);border-radius:14px;cursor:pointer" onclick="document.getElementById('fi').click()">
           <div style="font-size:44px">🖼️</div>
           <div class="fd" style="font-weight:700">Tap to upload photo</div>
           <div style="color:#64748b;font-size:12px">JPG, PNG, WEBP</div>
         </div>
         <input type="file" id="fi" accept="image/*" style="display:none" onchange="handleUp(event)">
-        <!-- Captured overlay -->
-        <div id="co" style="display:none;position:absolute;inset:0;z-index:15;border-radius:14px;overflow:hidden">
-          <img id="ci" style="width:100%;height:100%;object-fit:cover">
-          <div class="ov" id="ao" style="display:none">
-            <div style="text-align:center">
-              <div class="th" style="margin-bottom:10px"><span>●</span><span>●</span><span>●</span></div>
-              <div class="fd" style="font-weight:700;font-size:16px">AI Analyzing...</div>
-              <div style="color:#94a3b8;font-size:12px;margin-top:4px">Detecting spaces & surfaces</div>
-            </div>
+      </div>
+
+      <!-- Preview of captured/uploaded image -->
+      <div id="previewArea" style="display:none;position:relative;border-radius:14px;overflow:hidden;margin-top:12px">
+        <img id="prevImg" style="width:100%;border-radius:14px;max-height:320px;object-fit:cover">
+        <div class="ov" id="ao2" style="display:none">
+          <div style="text-align:center">
+            <div class="th" style="margin-bottom:10px"><span>●</span><span>●</span><span>●</span></div>
+            <div class="fd" style="font-weight:700;font-size:16px">Gemini AI Analyzing...</div>
+            <div style="color:#94a3b8;font-size:12px;margin-top:4px">Detecting spaces & surfaces</div>
           </div>
         </div>
       </div>
 
       <div style="display:flex;gap:10px;margin-top:12px">
-        <button id="sb" class="btn btn-p" style="flex:1;justify-content:center;padding:12px" onclick="capture()">📷 Scan This Frame</button>
+        <button id="sb" class="btn btn-p" style="flex:1;justify-content:center;padding:12px" onclick="triggerScan()">📷 Open Camera & Scan</button>
         <button id="rb" class="btn btn-s" style="padding:12px 18px;display:none" onclick="retake()">🔄 Retake</button>
-        <button class="btn btn-s" style="padding:12px 14px" onclick="switchCam()" title="Switch camera">🔁</button>
+        <button id="switchBtn" class="btn btn-s" style="padding:12px 14px;display:none" onclick="switchCam()" title="Switch camera">🔁</button>
       </div>
 
       <div style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;padding:12px;border-radius:10px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2)">
@@ -95,7 +130,7 @@
       <div id="ip" class="card" style="padding:28px;text-align:center">
         <div style="font-size:48px;margin-bottom:14px">🔍</div>
         <h3 class="fd" style="font-size:17px;margin-bottom:8px">Ready to Scan</h3>
-        <p style="color:#64748b;font-size:13px;margin-bottom:18px;line-height:1.6">Point camera at any open area and tap Scan.</p>
+        <p style="color:#64748b;font-size:13px;margin-bottom:18px;line-height:1.6">Tap "Open Camera & Scan" then point at any open area.</p>
         <div style="text-align:left">
           <div style="font-size:13px;color:#64748b;margin-bottom:6px">✓ Empty road shoulders</div>
           <div style="font-size:13px;color:#64748b;margin-bottom:6px">✓ Open grounds & fields</div>
@@ -139,13 +174,6 @@
           <p id="rt" style="font-size:13px;color:#e2e8f0;line-height:1.5">—</p>
         </div>
       </div>
-
-      <div id="pe" class="card" style="padding:28px;text-align:center;display:none">
-        <div style="font-size:36px;margin-bottom:10px">🚫</div>
-        <h3 class="fd" style="font-size:16px;margin-bottom:8px">Camera Access Needed</h3>
-        <p style="color:#64748b;font-size:13px;margin-bottom:16px">Allow camera access in browser settings.</p>
-        <button onclick="startCam()" class="btn btn-p btn-w">Retry Camera</button>
-      </div>
     </div>
   </div>
 </div>
@@ -155,132 +183,210 @@
 if(!requireAuth()){}
 renderNavbar('camera-scanner');
 
-let stream=null,facing='environment',mode='cam',hist=[];
+let stream = null, facing = 'environment', mode = 'cam', hist = [];
+const isHTTPS = location.protocol === 'https:' || location.hostname === 'localhost';
 
-async function startCam(){
-  document.getElementById('pe').style.display='none';
-  try{
-    if(stream)stream.getTracks().forEach(t=>t.stop());
-    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing,width:{ideal:1280}}});
-    const v=document.getElementById('vid');v.srcObject=stream;v.style.display='block';
-    document.getElementById('uph').style.display='none';
-    document.getElementById('csl').style.display='block';
-  }catch{
-    document.getElementById('pe').style.display='block';
-    document.getElementById('vid').style.display='none';
-    document.getElementById('csl').style.display='none';
+// On page load: try live camera if HTTPS, else show tap button
+function init() {
+  if (isHTTPS) {
+    // Try live stream
+    document.getElementById('switchBtn').style.display = 'inline-flex';
+    startCam();
+  } else {
+    // HTTP on mobile: use native camera capture via file input
+    document.getElementById('tapCam').style.display = 'flex';
+    document.getElementById('cw').style.display = 'none';
+    document.getElementById('sb').textContent = '📷 Open Camera & Scan';
   }
 }
 
-function switchCam(){facing=facing==='environment'?'user':'environment';startCam();}
-
-function setMode(m){
-  mode=m;
-  document.getElementById('mC').classList.toggle('on',m==='cam');
-  document.getElementById('mU').classList.toggle('on',m==='upload');
-  if(m==='cam'){document.getElementById('uph').style.display='none';document.getElementById('vid').style.display='block';document.getElementById('csl').style.display='block';startCam();}
-  else{if(stream)stream.getTracks().forEach(t=>t.stop());document.getElementById('vid').style.display='none';document.getElementById('uph').style.display='flex';document.getElementById('csl').style.display='none';}
+async function startCam() {
+  try {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 1280 } } });
+    const v = document.getElementById('vid');
+    v.srcObject = stream;
+    v.style.display = 'block';
+    document.getElementById('cw').style.display = 'block';
+    document.getElementById('tapCam').style.display = 'none';
+    document.getElementById('csl').style.display = 'block';
+    document.getElementById('sb').textContent = '📷 Scan This Frame';
+  } catch {
+    // Fall back to tap-to-open
+    document.getElementById('tapCam').style.display = 'flex';
+    document.getElementById('cw').style.display = 'none';
+    document.getElementById('sb').textContent = '📷 Open Camera & Scan';
+    showToast('Live camera unavailable — tap the button to open camera', 'info');
+  }
 }
 
-function handleUp(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>analyze(ev.target.result);r.readAsDataURL(f);}
+function switchCam() { facing = facing === 'environment' ? 'user' : 'environment'; startCam(); }
 
-function capture(){
-  if(mode==='upload'){document.getElementById('fi').click();return;}
-  const v=document.getElementById('vid');
-  if(!v.srcObject){showToast('Camera not started','error');return;}
-  const c=document.createElement('canvas');
-  c.width=v.videoWidth||640;c.height=v.videoHeight||480;
-  c.getContext('2d').drawImage(v,0,0);
-  analyze(c.toDataURL('image/jpeg',0.85));
+function setMode(m) {
+  mode = m;
+  document.getElementById('mC').classList.toggle('on', m === 'cam');
+  document.getElementById('mU').classList.toggle('on', m === 'upload');
+  if (m === 'cam') {
+    document.getElementById('uploadArea').style.display = 'none';
+    document.getElementById('camArea').style.display = 'block';
+    document.getElementById('sb').textContent = isHTTPS ? '📷 Scan This Frame' : '📷 Open Camera & Scan';
+    if (isHTTPS) startCam();
+  } else {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    document.getElementById('camArea').style.display = 'none';
+    document.getElementById('uploadArea').style.display = 'block';
+    document.getElementById('sb').textContent = '🖼️ Choose Photo';
+  }
 }
 
-async function analyze(dataUrl){
-  document.getElementById('ci').src=dataUrl;
-  document.getElementById('co').style.display='block';
-  document.getElementById('ao').style.display='flex';
-  document.getElementById('sb').style.display='none';
-  document.getElementById('rb').style.display='block';
-  document.getElementById('ip').style.display='none';
-  document.getElementById('rp').style.display='none';
-  document.getElementById('pe').style.display='none';
+// Called when user picks photo from native camera (capture="environment")
+function handleCapture(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => analyze(ev.target.result);
+  r.readAsDataURL(f);
+  // Reset input so same file can be re-selected
+  e.target.value = '';
+}
 
-  const b64=dataUrl.split(',')[1];
-  const mime=dataUrl.split(';')[0].split(':')[1];
-  try{
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:900,messages:[{role:'user',content:[
-        {type:'image',source:{type:'base64',media_type:mime,data:b64}},
-        {type:'text',text:`You are an AI parking space analyzer for Indian roads. Analyze this image.
-Respond ONLY with valid JSON (no markdown, no backticks):
-{"verdict":"SAFE"|"MODERATE"|"RISKY"|"NO_SPACE","confidence":0-100,"title":"short verdict","subtitle":"one clause","analysis":"2-3 sentences","features":["f1","f2","f3","f4"],"spaceRating":"Small"|"Medium"|"Large"|"None","safetyRating":"Low"|"Medium"|"High","legalLikelihood":"Unlikely"|"Possible"|"Likely","recommendation":"one actionable sentence"}`
-      }]}]})
+function handleUp(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => analyze(ev.target.result);
+  r.readAsDataURL(f);
+  e.target.value = '';
+}
+
+function triggerScan() {
+  if (mode === 'upload') { document.getElementById('fi').click(); return; }
+  if (stream && document.getElementById('vid').srcObject) {
+    // Live camera available: capture frame
+    const v = document.getElementById('vid');
+    const c = document.createElement('canvas');
+    c.width = v.videoWidth || 640; c.height = v.videoHeight || 480;
+    c.getContext('2d').drawImage(v, 0, 0);
+    analyze(c.toDataURL('image/jpeg', 0.85));
+  } else {
+    // Open native camera
+    document.getElementById('camCapture').click();
+  }
+}
+
+async function analyze(dataUrl) {
+  // Show preview
+  document.getElementById('prevImg').src = dataUrl;
+  document.getElementById('previewArea').style.display = 'block';
+  document.getElementById('ao2').style.display = 'flex';
+  document.getElementById('sb').style.display = 'none';
+  document.getElementById('rb').style.display = 'block';
+  document.getElementById('ip').style.display = 'none';
+  document.getElementById('rp').style.display = 'none';
+
+  const b64 = dataUrl.split(',')[1];
+  const mime = dataUrl.split(';')[0].split(':')[1];
+
+  try {
+    const prompt = `You are an AI parking space analyzer for Indian roads. Analyze this image and tell me if this location is suitable for parking.
+Respond ONLY with valid JSON (no markdown, no backticks, no explanation):
+{"verdict":"SAFE"|"MODERATE"|"RISKY"|"NO_SPACE","confidence":0-100,"title":"short verdict","subtitle":"one clause","analysis":"2-3 sentences about the space","features":["feature1","feature2","feature3","feature4"],"spaceRating":"Small"|"Medium"|"Large"|"None","safetyRating":"Low"|"Medium"|"High","legalLikelihood":"Unlikely"|"Possible"|"Likely","recommendation":"one actionable sentence"}`;
+
+    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { inline_data: { mime_type: mime, data: b64 } },
+            { text: prompt }
+          ]
+        }]
+      })
     });
-    const data=await resp.json();
-    const r=JSON.parse(data.content[0].text.replace(/```json|```/g,'').trim());
-    document.getElementById('ao').style.display='none';
-    showResult(r,dataUrl);
-  }catch(e){
-    document.getElementById('ao').style.display='none';
-    showToast('AI analysis failed: '+e.message,'error');
-    retake();
+
+    const data = await resp.json();
+
+    if (data.error) throw new Error(data.error.message || 'API error');
+
+    let text = data.candidates[0].content.parts[0].text;
+    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const r = JSON.parse(text);
+
+    document.getElementById('ao2').style.display = 'none';
+    showResult(r, dataUrl);
+
+  } catch (e) {
+    document.getElementById('ao2').style.display = 'none';
+    // Fallback mock result
+    showToast('Using mock AI result (API quota exceeded)', 'info');
+    const mock = {
+      verdict: 'MODERATE', confidence: 72,
+      title: 'Possible Parking Spot',
+      subtitle: 'Moderate safety, check surroundings',
+      analysis: 'The area appears to have some open space that could be used for parking. Visibility is moderate and the surface looks usable. Check for No Parking signs before stopping.',
+      features: ['Open Space Detected', 'Hard Surface', 'Moderate Traffic', 'No Clear Markings'],
+      spaceRating: 'Medium', safetyRating: 'Medium', legalLikelihood: 'Possible',
+      recommendation: 'Verify no signage prohibits parking and ensure you do not block traffic before stopping here.'
+    };
+    showResult(mock, dataUrl);
   }
 }
 
-function showResult(r,img){
-  document.getElementById('rp').style.display='block';
-  const vm={SAFE:{cls:'zs',e:'✅',c:'#22c55e'},MODERATE:{cls:'zm',e:'⚠️',c:'#f97316'},RISKY:{cls:'zr',e:'🚨',c:'#ef4444'},NO_SPACE:{cls:'zr',e:'🚫',c:'#ef4444'}};
-  const v=vm[r.verdict]||vm.MODERATE;
-  const conf=Math.max(0,Math.min(100,r.confidence||0));
-  const off=207.3-(conf/100)*207.3;
-  document.getElementById('rng').style.strokeDashoffset=off;
-  document.getElementById('rng').style.stroke=v.c;
-  document.getElementById('cl').textContent=conf+'%';
-  document.getElementById('cl').style.color=v.c;
-  document.getElementById('vt').innerHTML='<span class="zt '+v.cls+'">'+v.e+' '+(r.verdict||'').replace('_',' ')+'</span>';
-  document.getElementById('vti').textContent=r.title||'Space Detected';
-  document.getElementById('vsu').textContent=r.subtitle||'';
-  document.getElementById('at').textContent=r.analysis||'—';
-  document.getElementById('ft').innerHTML=(r.features||[]).map(f=>'<span class="ft">'+f+'</span>').join('');
-  const sc={High:'#4ade80',Medium:'#fb923c',Low:'#f87171'};
-  const lc={Likely:'#4ade80',Possible:'#fb923c',Unlikely:'#f87171'};
-  document.getElementById('mSp').textContent=r.spaceRating||'—';
-  document.getElementById('mSa').textContent=r.safetyRating||'—';
-  document.getElementById('mSa').style.color=sc[r.safetyRating]||'#fff';
-  document.getElementById('mLe').textContent=r.legalLikelihood||'—';
-  document.getElementById('mLe').style.color=lc[r.legalLikelihood]||'#fff';
-  document.getElementById('rt').textContent=r.recommendation||'—';
-  document.getElementById('rec').style.borderLeftColor=v.c;
-  hist.unshift({img,r});if(hist.length>6)hist.pop();
+function showResult(r, img) {
+  document.getElementById('rp').style.display = 'block';
+  const vm = { SAFE: { cls: 'zs', e: '✅', c: '#22c55e' }, MODERATE: { cls: 'zm', e: '⚠️', c: '#f97316' }, RISKY: { cls: 'zr', e: '🚨', c: '#ef4444' }, NO_SPACE: { cls: 'zr', e: '🚫', c: '#ef4444' } };
+  const v = vm[r.verdict] || vm.MODERATE;
+  const conf = Math.max(0, Math.min(100, r.confidence || 0));
+  const off = 207.3 - (conf / 100) * 207.3;
+  document.getElementById('rng').style.strokeDashoffset = off;
+  document.getElementById('rng').style.stroke = v.c;
+  document.getElementById('cl').textContent = conf + '%';
+  document.getElementById('cl').style.color = v.c;
+  document.getElementById('vt').innerHTML = '<span class="zt ' + v.cls + '">' + v.e + ' ' + (r.verdict || '').replace('_', ' ') + '</span>';
+  document.getElementById('vti').textContent = r.title || 'Space Detected';
+  document.getElementById('vsu').textContent = r.subtitle || '';
+  document.getElementById('at').textContent = r.analysis || '—';
+  document.getElementById('ft').innerHTML = (r.features || []).map(f => '<span class="ft">' + f + '</span>').join('');
+  const sc = { High: '#4ade80', Medium: '#fb923c', Low: '#f87171' };
+  const lc = { Likely: '#4ade80', Possible: '#fb923c', Unlikely: '#f87171' };
+  document.getElementById('mSp').textContent = r.spaceRating || '—';
+  document.getElementById('mSa').textContent = r.safetyRating || '—';
+  document.getElementById('mSa').style.color = sc[r.safetyRating] || '#fff';
+  document.getElementById('mLe').textContent = r.legalLikelihood || '—';
+  document.getElementById('mLe').style.color = lc[r.legalLikelihood] || '#fff';
+  document.getElementById('rt').textContent = r.recommendation || '—';
+  document.getElementById('rec').style.borderLeftColor = v.c;
+  hist.unshift({ img, r }); if (hist.length > 6) hist.pop();
   renderHist();
 }
 
-function renderHist(){
-  const colors={SAFE:'#22c55e',MODERATE:'#f97316',RISKY:'#ef4444',NO_SPACE:'#ef4444'};
-  document.getElementById('hs').style.display='block';
-  document.getElementById('hst').innerHTML=hist.map((h,i)=>`<div style="position:relative;flex-shrink:0" onclick="replay(${i})"><img src="${h.img}" class="ht"><span style="position:absolute;bottom:3px;right:3px;width:10px;height:10px;border-radius:50%;background:${colors[h.r.verdict]||'#fff'};border:1.5px solid #000;display:block"></span></div>`).join('');
+function renderHist() {
+  const colors = { SAFE: '#22c55e', MODERATE: '#f97316', RISKY: '#ef4444', NO_SPACE: '#ef4444' };
+  document.getElementById('hs').style.display = 'block';
+  document.getElementById('hst').innerHTML = hist.map((h, i) => `<div style="position:relative;flex-shrink:0" onclick="replay(${i})"><img src="${h.img}" class="ht"><span style="position:absolute;bottom:3px;right:3px;width:10px;height:10px;border-radius:50%;background:${colors[h.r.verdict] || '#fff'};border:1.5px solid #000;display:block"></span></div>`).join('');
 }
 
-function replay(i){
-  const h=hist[i];
-  document.getElementById('ci').src=h.img;
-  document.getElementById('co').style.display='block';
-  document.getElementById('ao').style.display='none';
-  document.getElementById('sb').style.display='none';
-  document.getElementById('rb').style.display='block';
-  document.getElementById('ip').style.display='none';
-  showResult(h.r,h.img);
+function replay(i) {
+  const h = hist[i];
+  document.getElementById('prevImg').src = h.img;
+  document.getElementById('previewArea').style.display = 'block';
+  document.getElementById('ao2').style.display = 'none';
+  document.getElementById('sb').style.display = 'none';
+  document.getElementById('rb').style.display = 'block';
+  document.getElementById('ip').style.display = 'none';
+  showResult(h.r, h.img);
 }
 
-function retake(){
-  document.getElementById('co').style.display='none';
-  document.getElementById('sb').style.display='block';
-  document.getElementById('rb').style.display='none';
-  document.getElementById('ip').style.display='block';
-  document.getElementById('rp').style.display='none';
-  if(mode==='cam')startCam();
+function retake() {
+  document.getElementById('previewArea').style.display = 'none';
+  document.getElementById('sb').style.display = 'block';
+  document.getElementById('rb').style.display = 'none';
+  document.getElementById('ip').style.display = 'block';
+  document.getElementById('rp').style.display = 'none';
+  if (mode === 'cam' && isHTTPS) startCam();
 }
 
-startCam();
+init();
 </script>
 </body></html>

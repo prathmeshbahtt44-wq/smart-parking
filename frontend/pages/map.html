@@ -35,14 +35,14 @@ const mkI=(c='#f97316')=>L.divIcon({className:'',html:'<div style="background:'+
 let mks=[];
 function clr(){mks.forEach(m=>map.removeLayer(m));mks=[];}
 function card(l){
-  const a=l.availableSlots??0,pct=Math.round(a/l.total_slots*100),bc=availBadge(a,l.total_slots);
-  return '<a class="lc" href="/pages/lot.html?id='+l.id+'"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px"><div><div style="font-weight:600;font-size:14px">'+l.name+'</div><div style="color:#64748b;font-size:12px;margin-top:2px">'+l.location+'</div></div><span class="badge '+bc+'" style="margin-left:8px">'+a+'/'+l.total_slots+'</span></div><div style="display:flex;gap:14px;font-size:12px;color:#64748b;flex-wrap:wrap;margin-bottom:7px"><span>🚗 '+l.vehicle_type+'</span><span>💰 '+fmtINR(l.price_per_hour)+'/hr</span>'+(l.distanceKm!=null?'<span>📏 '+l.distanceKm+' km</span>':'')+'</div><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:'+(pct>30?'#22c55e':pct>0?'#f97316':'#ef4444')+'"></div></div></a>';
+  const avail=(l.total-l.booked)??0, tot=l.total??0, pct=tot>0?Math.round(avail/tot*100):0, bc=availBadge(avail,tot);
+  return '<a class="lc" href="/pages/lot.html?id='+l.id+'"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px"><div><div style="font-weight:600;font-size:14px">'+l.name+'</div><div style="color:#64748b;font-size:12px;margin-top:2px">'+l.location+'</div></div><span class="badge '+bc+'" style="margin-left:8px">'+avail+'/'+tot+'</span></div><div style="display:flex;gap:14px;font-size:12px;color:#64748b;flex-wrap:wrap;margin-bottom:7px"><span>🚗 '+l.type+'</span><span>💰 '+fmtINR(l.pricePerHour)+'/hr</span>'+(l.distKm!=null?'<span>📏 '+l.distKm+' km</span>':'')+'</div><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:'+(pct>30?'#22c55e':pct>0?'#f97316':'#ef4444')+'"></div></div></a>';
 }
 async function loadAll(){
-  const r=await Parking.getAll();
-  document.getElementById('lc').textContent=r.lots.length+' lots';
-  document.getElementById('ll').innerHTML=r.lots.map(card).join('');
-  clr();r.lots.forEach(l=>{const m=L.marker([l.lat,l.lng],{icon:mkI()}).addTo(map).bindPopup('<b>'+l.name+'</b><br>'+l.availableSlots+' free · <a href="/pages/lot.html?id='+l.id+'" style="color:#f97316">Book →</a>');mks.push(m);});
+  const lots=Parking.getAll();
+  document.getElementById('lc').textContent=lots.length+' lots';
+  document.getElementById('ll').innerHTML=lots.map(card).join('');
+  clr();lots.forEach(l=>{const m=L.marker([l.lat,l.lng],{icon:mkI()}).addTo(map).bindPopup('<b>'+l.name+'</b><br>'+(l.total-l.booked)+' free · <a href="/pages/lot.html?id='+l.id+'" style="color:#f97316">Book →</a>');mks.push(m);});
 }
 document.getElementById('lb').addEventListener('click',()=>{
   if(!navigator.geolocation){showToast('Geolocation not supported','error');return;}
@@ -53,10 +53,10 @@ document.getElementById('lb').addEventListener('click',()=>{
     L.circleMarker([lat,lng],{radius:9,color:'#f97316',fillColor:'#f97316',fillOpacity:.9}).addTo(map).bindPopup('📍 You').openPopup();
     document.getElementById('ls').innerHTML='<span style="color:#4ade80">📍 '+lat.toFixed(4)+', '+lng.toFixed(4)+'</span>';
     try{
-      const r=await Parking.getNearby(lat,lng);
-      document.getElementById('lc').textContent=r.lots.length+' nearby';
-      document.getElementById('ll').innerHTML=r.lots.length?r.lots.map(card).join(''):'<div class="card" style="padding:28px;text-align:center;color:#64748b"><p>No lots within 15km</p><a href="/pages/ai-finder.html" style="color:#f97316;font-size:13px;display:block;margin-top:8px">Try AI Finder →</a></div>';
-      clr();r.lots.forEach(l=>{const c=l.availableSlots>0?'#f97316':'#ef4444';const m=L.marker([l.lat,l.lng],{icon:mkI(c)}).addTo(map).bindPopup('<b>'+l.name+'</b><br>'+l.availableSlots+' free · '+l.distanceKm+'km<br><a href="/pages/lot.html?id='+l.id+'" style="color:#f97316">Book →</a>');mks.push(m);});
+      const lots=Parking.getNearby(lat,lng);
+      document.getElementById('lc').textContent=lots.length+' nearby';
+      document.getElementById('ll').innerHTML=lots.length?lots.map(card).join(''):'<div class="card" style="padding:28px;text-align:center;color:#64748b"><p>No lots within 15km</p><a href="/pages/ai-finder.html" style="color:#f97316;font-size:13px;display:block;margin-top:8px">Try AI Finder →</a></div>';
+      clr();lots.forEach(l=>{const c=(l.total-l.booked)>0?'#f97316':'#ef4444';const m=L.marker([l.lat,l.lng],{icon:mkI(c)}).addTo(map).bindPopup('<b>'+l.name+'</b><br>'+(l.total-l.booked)+' free · '+l.distKm+'km<br><a href="/pages/lot.html?id='+l.id+'" style="color:#f97316">Book →</a>');mks.push(m);});
     }catch(e){showToast(e.message,'error');}
     btnReset(btn);
   },()=>{showToast('Location denied — showing all lots','error');btnReset(btn);loadAll();});

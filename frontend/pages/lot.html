@@ -97,22 +97,21 @@ let selSlot=null,pph=0;
 
 async function loadLot(){
   try{
-    const[lr,sr]=await Promise.all([Parking.getById(lotId),Parking.getSlots(lotId)]);
-    const lot=lr.lot;
-    pph=lot.price_per_hour;
+    const[lot,slots]=await Promise.all([Parking.getById(lotId),Parking.getSlots(lotId)]);
+    pph=lot.pricePerHour;
     document.getElementById('bc').textContent=lot.name;
     document.title=lot.name+' — SmartPark AI';
-    const avail=lot.availableSlots;
+    const avail=lot.total-lot.booked;
     document.getElementById('lh').innerHTML=`
       <div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:16px">
         <div><h1 class="fd" style="font-size:22px;font-weight:800">${lot.name}</h1><p style="color:#64748b;font-size:13px;margin-top:4px">📍 ${lot.location}</p></div>
         <div style="display:flex;gap:12px;flex-wrap:wrap">
-          <div class="stat-box" style="padding:12px 20px;text-align:center"><div class="sl">Available</div><div class="sv" style="font-size:22px;color:${avail>10?'#4ade80':avail>0?'#fbbf24':'#f87171'}">${avail}/${lot.total_slots}</div></div>
-          <div class="stat-box" style="padding:12px 20px;text-align:center"><div class="sl">Price/Hr</div><div class="sv" style="font-size:22px;color:#f97316">${fmtINR(lot.price_per_hour)}</div></div>
-          <div class="stat-box" style="padding:12px 20px;text-align:center"><div class="sl">Vehicle</div><div class="sv" style="font-size:18px">${lot.vehicle_type}</div></div>
+          <div class="stat-box" style="padding:12px 20px;text-align:center"><div class="sl">Available</div><div class="sv" style="font-size:22px;color:${avail>10?'#4ade80':avail>0?'#fbbf24':'#f87171'}">${avail}/${lot.total}</div></div>
+          <div class="stat-box" style="padding:12px 20px;text-align:center"><div class="sl">Price/Hr</div><div class="sv" style="font-size:22px;color:#f97316">${fmtINR(lot.pricePerHour)}</div></div>
+          <div class="stat-box" style="padding:12px 20px;text-align:center"><div class="sl">Vehicle</div><div class="sv" style="font-size:18px">${lot.type}</div></div>
         </div>
       </div>`;
-    document.getElementById('sg').innerHTML=sr.slots.map(s=>`
+    document.getElementById('sg').innerHTML=slots.map(s=>`
       <div class="slot ${s.is_occupied?'so':'sf'}" id="sl-${s.slot_id}"
            data-id="${s.slot_id}" data-num="${s.slot_number}" data-occ="${s.is_occupied?1:0}"
            onclick="pick(this)">${s.slot_number}</div>`).join('');
@@ -144,15 +143,14 @@ document.getElementById('bb').addEventListener('click',async()=>{
   const btn=document.getElementById('bb');
   btnLoading(btn,'Booking...');
   try{
-    const r=await Bookings.book({lotId,slotId:selSlot.id,vehicleNumber:veh,hours:h});
-    const b=r.booking;
-    document.getElementById('qrc').innerHTML=generateQR(b.qr_token);
-    document.getElementById('qrt').textContent=b.qr_token;
-    document.getElementById('cL').textContent=b.lot_name;
-    document.getElementById('cS').textContent='#'+b.slot_number;
-    document.getElementById('cV').textContent=b.vehicle_number;
+    const b=await Bookings.book({lotId,slotId:selSlot.id,vehicleNumber:veh,hours:h});
+    document.getElementById('qrc').innerHTML=generateQR(b.token);
+    document.getElementById('qrt').textContent=b.token;
+    document.getElementById('cL').textContent=b.lotName;
+    document.getElementById('cS').textContent='#'+b.slotNumber;
+    document.getElementById('cV').textContent=b.vehicleNumber;
     document.getElementById('cD').textContent=b.hours+'h';
-    document.getElementById('cT').textContent=fmtINR(b.total_amount);
+    document.getElementById('cT').textContent=fmtINR(b.totalAmount);
     document.getElementById('cm').style.display='flex';
     const sEl=document.getElementById('sl-'+selSlot.id);
     if(sEl){sEl.classList.remove('ss');sEl.classList.add('so');sEl.dataset.occ='1';}

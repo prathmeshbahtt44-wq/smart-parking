@@ -10,8 +10,15 @@
 <div class="blob" style="width:400px;height:400px;background:rgba(59,130,246,0.07);bottom:0;right:-50px"></div>
 <div class="hero pe">
   <span class="badge bo" style="margin-bottom:20px;font-size:12px;padding:5px 14px">🇮🇳 Built for Indian Smart Cities</span>
-  <h1 class="fd" style="font-size:clamp(2.2rem,6vw,3.8rem);font-weight:800;line-height:1.1;color:#fff;margin-bottom:20px">Find Parking in<br><span style="background:linear-gradient(135deg,#f97316,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Seconds, Not Minutes</span></h1>
-  <p style="color:#94a3b8;font-size:1.1rem;max-width:540px;margin:0 auto 36px;line-height:1.7">GPS lot discovery · AI camera scanner · Vehicle-dimension space matching</p>
+  <h1 class="fd" style="font-size:clamp(2.2rem,6vw,3.8rem);font-weight:800;line-height:1.1;color:#fff;margin-bottom:20px">Find Parking in<br><span style="background:linear-gradient(135deg,#f97316,#ea580c);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Seconds, Not Minutes</span></h1>
+  <p style="color:#94a3b8;font-size:1.1rem;max-width:540px;margin:0 auto 24px;line-height:1.7">GPS lot discovery · AI camera scanner · Vehicle-dimension space matching</p>
+  <div style="display:flex;gap:24px;justify-content:center;margin-bottom:36px;font-family:'Syne',sans-serif">
+    <div><div class="fd" style="font-size:24px;font-weight:800;color:#f97316" id="st1">10+</div><div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:1px">Cities</div></div>
+    <div style="width:1px;background:rgba(255,255,255,.1)"></div>
+    <div><div class="fd" style="font-size:24px;font-weight:800;color:#4ade80" id="st2">500+</div><div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:1px">Spots</div></div>
+    <div style="width:1px;background:rgba(255,255,255,.1)"></div>
+    <div><div class="fd" style="font-size:24px;font-weight:800;color:#60a5fa" id="st3">3</div><div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:1px">AI Tools</div></div>
+  </div>
   <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:20px">
     <a href="/pages/register.html" class="btn btn-p" style="font-size:15px;padding:13px 32px">🚀 Get Started Free</a>
     <a href="/pages/login.html" class="btn btn-s" style="font-size:15px;padding:13px 32px">Sign In →</a>
@@ -29,5 +36,16 @@
   </div>
 </div>
 <footer style="text-align:center;padding:20px;color:#475569;font-size:13px;border-top:1px solid rgba(255,255,255,0.05)">SmartPark AI · Minor Project 2026 · Prathmesh Bhatt & Krish Menaria · JECRC University</footer>
-<script src="/js/api.js"></script><script>redirectIfAuth();</script>
+<script src="/js/api.js"></script><script>
+redirectIfAuth();
+function anim(id, end, dur) {
+  let start = null; const el = document.getElementById(id);
+  const step = ts => {
+    if (!start) start = ts; const p = Math.min((ts - start) / dur, 1);
+    el.textContent = Math.floor(p * end) + (id === 'st1' || id === 'st2' ? '+' : '');
+    if (p < 1) requestAnimationFrame(step);
+  }; requestAnimationFrame(step);
+}
+setTimeout(() => { anim('st1', 10, 1000); anim('st2', 500, 1200); anim('st3', 3, 800); }, 300);
+</script>
 </body></html>

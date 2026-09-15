@@ -79,8 +79,7 @@ document.getElementById('fb').addEventListener('click',()=>{
     L.circleMarker([lat,lng],{radius:8,color:'#f97316',fillColor:'#f97316',fillOpacity:.9}).addTo(aiMap).bindPopup('📍 You');
     const vt=document.getElementById('vt').value;
     try{
-      const r=await AIApi.fallback(lat,lng,vt);
-      const spots=r.spots;
+      const spots=await AIApi.fallback(lat,lng,vt);
       document.getElementById('sc').textContent=spots.length+' found';
       if(!spots.length){document.getElementById('sl').innerHTML='<div class="card" style="padding:28px;text-align:center;color:#64748b">No spots found nearby</div>';return;}
       document.getElementById('sl').innerHTML=spots.map(s=>`

@@ -74,20 +74,20 @@ function render(bks){
   el.innerHTML=bks.map(b=>`
     <div class="bk">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:4px">
-        <div><div class="fd" style="font-size:17px;font-weight:700">${b.lot_name}</div><div style="color:#64748b;font-size:12px;margin-top:3px">${b.location}</div></div>
+        <div><div class="fd" style="font-size:17px;font-weight:700">${b.lotName}</div><div style="color:#64748b;font-size:12px;margin-top:3px">${b.location}</div></div>
         <div style="display:flex;align-items:center;gap:8px">
           <span class="badge ${b.status==='active'?'bg':'br'}">${b.status==='active'?'🟢 Active':'🔴 Cancelled'}</span>
-          <span style="color:#f97316;font-weight:700;font-size:15px">${fmtINR(b.total_amount)}</span>
+          <span style="color:#f97316;font-weight:700;font-size:15px">${fmtINR(b.totalAmount)}</span>
         </div>
       </div>
       <div class="bg4">
-        <div class="tile"><div class="tl">Slot</div><div class="tv">#${b.slot_number}</div></div>
-        <div class="tile"><div class="tl">Vehicle</div><div class="tv">${b.vehicle_number}</div></div>
+        <div class="tile"><div class="tl">Slot</div><div class="tv">#${b.slotNumber}</div></div>
+        <div class="tile"><div class="tl">Vehicle</div><div class="tv">${b.vehicleNumber}</div></div>
         <div class="tile"><div class="tl">Duration</div><div class="tv">${b.hours}h</div></div>
-        <div class="tile"><div class="tl">Rate</div><div class="tv">${fmtINR(b.price_per_hour)}/hr</div></div>
+        <div class="tile"><div class="tl">Rate</div><div class="tv">${fmtINR(b.pricePerHour)}/hr</div></div>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <span style="color:#475569;font-size:12px">Booked: ${fmtIST(b.booked_at)}</span>
+        <span style="color:#475569;font-size:12px">Booked: ${fmtIST(b.bookedAt)}</span>
         <div style="display:flex;gap:8px">
           <button class="btn btn-s btn-sm" onclick="showQR('${b.id}')">🔍 View QR</button>
           ${b.status==='active'?`<button class="btn btn-d btn-sm" onclick="cancelBk('${b.id}')">Cancel</button>`:''}
@@ -98,12 +98,12 @@ function render(bks){
 
 function showQR(id){
   const b=all.find(x=>x.id===id);if(!b)return;
-  document.getElementById('qmL').textContent=b.lot_name;
-  document.getElementById('qmB').innerHTML=generateQR(b.qr_token);
-  document.getElementById('qmT').textContent=b.qr_token;
-  document.getElementById('qmS').textContent='#'+b.slot_number;
-  document.getElementById('qmV').textContent=b.vehicle_number;
-  document.getElementById('qmA').textContent=fmtINR(b.total_amount);
+  document.getElementById('qmL').textContent=b.lotName;
+  document.getElementById('qmB').innerHTML=generateQR(b.token);
+  document.getElementById('qmT').textContent=b.token;
+  document.getElementById('qmS').textContent='#'+b.slotNumber;
+  document.getElementById('qmV').textContent=b.vehicleNumber;
+  document.getElementById('qmA').textContent=fmtINR(b.totalAmount);
   document.getElementById('qm').style.display='flex';
 }
 
